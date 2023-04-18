@@ -1,0 +1,71 @@
+name:                splt
+version:             0.1.0.0
+license:             BSD3
+copyright:           "2023"
+
+extra-source-files:
+- README.md
+- CHANGELOG.md
+
+description: Split invoices for core lightning.
+
+dependencies:
+- base >= 4.7 && < 5
+- clplug
+- random
+- process
+- text
+- time 
+- aeson
+- mtl
+- lens
+- lens-aeson
+- beam-core
+- beam-sqlite
+- beam-migrate
+- sqlite-simple
+- cryptonite
+- bytestring 
+- text
+- servant
+- servant-server
+- warp 
+- wai-extra
+- ed25519
+- http-media
+
+ghc-options:
+- -Wall
+- -Wcompat
+- -Widentities
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wmissing-export-lists
+- -Wmissing-home-modules
+- -Wpartial-fields
+- -Wredundant-constraints
+
+library:
+  source-dirs: src
+
+executables:
+  splt:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - splt
+
+tests:
+  freeze-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - splt
