@@ -35,6 +35,12 @@ import System.Random
 import Control.Monad.Reader
 import Data.Time.Clock.POSIX
 import Data.Int
+import Control.Monad.IO.Class
+import Control.Concurrent
+--import Control.Exception
+import Network.Wai.Handler.Warp
+import Servant hiding (respond) 
+import AoServer
 
 prin m = liftIO $ appendFile "/home/o/.ao/storm" $ show m <> "\n"
 lcli :: (MonadReader Plug m, MonadIO m) => PartialCommand -> m (Maybe (Res Value)) 
@@ -61,7 +67,20 @@ s = do
     liftIO $ callCommand $ "touch " <> dblocation
     conn <- liftIO $ open $ dblocation 
     liftIO $ execute_ conn sqlCreate
+    ch <- liftIO$newChan
+    pl <- ask
+    _ <- liftIO.forkIO $ runSuede 8153
+                                  "/home/o/o/Projects/split/frontend/dist"
+                                  (bb)
+                                  ch
     return conn
+    where 
+    bb :: Chan AoEvent -> Value -> Handler NoContent 
+    bb i v = do 
+        
+        liftIO $ writeChan i $ AoEvent v 
+        return NoContent 
+                   
 
 -- | data handler
 p :: PluginApp Connection
