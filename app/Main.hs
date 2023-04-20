@@ -59,7 +59,7 @@ m = object [
         ])
     ] 
 
--- | store the connection in state
+-- | store the database Connection in state, run webserver
 s :: InitMonad Connection
 s = do 
     Init _ (InitConfig {lightning5dir}) <- asks conf  
@@ -69,16 +69,17 @@ s = do
     liftIO $ execute_ conn sqlCreate
     ch <- liftIO$newChan
     pl <- ask
-    _ <- liftIO.forkIO $ runSuede 8153
+    _ <- liftIO.forkIO $ runSuede pl 
+                                  8153
                                   "/home/o/o/Projects/split/frontend/dist"
                                   (bb)
                                   ch
     return conn
     where 
-    bb :: Chan AoEvent -> Value -> Handler NoContent 
+    bb :: Chan AoEvent -> Value -> ReaderT Plug Handler NoContent 
     bb i v = do 
-        
-        liftIO $ writeChan i $ AoEvent v 
+        Just (Res v2 _) <- lightningCli (Command "getinfo" Nothing (object [])) 
+        liftIO $ writeChan i $ AoEvent v2 
         return NoContent 
                    
 

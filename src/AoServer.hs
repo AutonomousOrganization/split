@@ -5,12 +5,15 @@
     , DataKinds 
     , OverloadedStrings
     , DeriveGeneric
+    , FlexibleContexts
     #-} 
 
 
 module AoServer where 
 
 import Data.Text (Text) 
+import Control.Client
+import Control.Plugin
 import GHC.Generics
 import Data.Aeson
 import qualified Data.ByteString.Lazy as BL
@@ -23,6 +26,7 @@ import Servant
 import qualified Network.HTTP.Media as M
 import Data.Typeable
 import Control.Monad.IO.Class
+import Control.Monad.Reader
 
 data AoEvent = AoEvent Value
 
@@ -45,8 +49,8 @@ instance ToSSE AoEvent where
 type InFeed = "events" :> ReqBody '[JSON] Value :> Post '[JSON] NoContent
 
 type OutFeed = "eventfeed" :> StreamGet NoFraming EventStream (SourceIO AoEvent)
-out :: Chan AoEvent -> Server OutFeed
-out i = do 
+-- sse :: (MonadReader Plug m) => Chan AoEvent -> m OutFeed
+sse i = do 
     dup <- liftIO $ dupChan i 
     se <- liftIO . readChan $ dup 
     return $ source [se] 
@@ -55,16 +59,14 @@ type Suede =
     InFeed :<|> 
     OutFeed :<|> 
     Raw
+api :: Proxy Suede
+api = Proxy
 
 suede dist inn feed = 
     inn feed :<|> 
-    out feed :<|>
+    sse feed :<|>
     serveDirectoryWebApp dist 
 
-runSuede p pa cce feed = run p $ serve (Proxy :: Proxy Suede) $ suede pa cce feed
-        
-
-
-
-
+runSuede plug port path cce feed = run port $ serve api $ 
+    hoistServer api (`runReaderT` plug) $ suede path cce feed
 
