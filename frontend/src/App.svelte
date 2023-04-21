@@ -1,11 +1,64 @@
 <script>
+  import {onMount} from 'svelte'
   import svelteLogo from './assets/svelte.svg'
   import viteLogo from '/vite.svg'
   import Counter from './lib/Counter.svelte'
+  import * as d3 from "d3";
 
+ let width = 450
+ let height = 450
+ // let margin = 40
+ // let radius = Math.min(width, height) / 2 - margin
+ // let parts = 5 
+ // let invoice = []
+ // let selected = 0
+ // 
+ // let pie = d3.pie()
+ // let data = [1, 1, 2, 3, 5, 8, 13, 21];
+ // let svg = d3.select("#splitchart")
+ // let g = svg.append("g")
+ //            .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")")
+ // let arc = d3.arc().innerRadius(0).outerRadius(radius)
+ // let arcs = g.selectAll("g").data(pie(data)).enter().append("g").attr("class","arc")
+
+ // arcs.append("path").attr("fill", "#336699" ).attr("d",arc) 
+ onMount(()=>{
+    var data = [2, 4, 8, 10];
+
+    var svg = d3.select("#splitchart"),
+        radius = Math.min(width, height) / 2,
+        g = svg.append("g").attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+    var color = d3.scaleOrdinal(['#4daf4a','#377eb8','#ff7f00','#984ea3','#e41a1c']);
+
+    // Generate the pie
+    var pie = d3.pie()(data);
+    // Generate the arcs
+    var arc = d3.arc()
+                .innerRadius(0)
+                .outerRadius(radius);
+
+    console.log({pie,arc})
+    //Generate groups
+        
+    console.log(pie) 
+    var arcs = g.selectAll("arc")
+                .data(pie)
+                .enter()
+                .append("g")
+                .attr("class", "arc")
+
+    //Draw arc paths
+    arcs.append("path")
+        .attr("fill", function(d, i) {
+            return color(i);
+        })
+        .attr("d", arc);
+  });
     
-  
-  async function doPost () {
+
+
+ async function doPost () {
       const res = await fetch('events', {
   		method: 'POST',
         headers: {
@@ -40,7 +93,13 @@
       <img src={svelteLogo} class="logo svelte" alt="Svelte Logo" />
     </a>
   </div>
-  <h1>split invoice</h1>
+  <h1>split invoices</h1>
+  <div id="my_dataviz"></div>
+  <p> test </p>
+  <svg id="splitchart" {width} {height}> 
+  
+  </svg>
+
   <ul>
 	{#each messages as m}
 		<li> x {m}</li>
