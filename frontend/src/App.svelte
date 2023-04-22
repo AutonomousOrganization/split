@@ -5,58 +5,33 @@
   import Counter from './lib/Counter.svelte'
   import * as d3 from "d3";
 
- let width = 450
- let height = 450
- // let margin = 40
- // let radius = Math.min(width, height) / 2 - margin
- // let parts = 5 
- // let invoice = []
- // let selected = 0
- // 
- // let pie = d3.pie()
- // let data = [1, 1, 2, 3, 5, 8, 13, 21];
- // let svg = d3.select("#splitchart")
- // let g = svg.append("g")
- //            .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")")
- // let arc = d3.arc().innerRadius(0).outerRadius(radius)
- // let arcs = g.selectAll("g").data(pie(data)).enter().append("g").attr("class","arc")
 
- // arcs.append("path").attr("fill", "#336699" ).attr("d",arc) 
- onMount(()=>{
-    var data = [2, 4, 8, 10];
+  let inv2 = {
+    "amt" : 1
+  , "bolt11" : ""
+  , "status" : "Nada"
+  }
+ let split = {
+      "invoiceid":""
+    , "bolt11" : ""
+    , "status" : "Nada"
+    , "parts" : [inv2, Object.assign({},inv2) ]
+ }
+ let width = 300 
+ $: height = width
+ $: radius = (Math.min(width, height) / 2) - 2
+ 
+ 
+ let colStatus = {
+    "Nada"    : "#4d4e4d"
+  , "Created" : "#377eb8"
+  , "Held"    : "#f2a900"
+  , "Paid"    : "#10aF10"
+ }
 
-    var svg = d3.select("#splitchart"),
-        radius = Math.min(width, height) / 2,
-        g = svg.append("g").attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
-
-    var color = d3.scaleOrdinal(['#4daf4a','#377eb8','#ff7f00','#984ea3','#e41a1c']);
-
-    // Generate the pie
-    var pie = d3.pie()(data);
-    // Generate the arcs
-    var arc = d3.arc()
-                .innerRadius(0)
-                .outerRadius(radius);
-
-    console.log({pie,arc})
-    //Generate groups
-        
-    console.log(pie) 
-    var arcs = g.selectAll("arc")
-                .data(pie)
-                .enter()
-                .append("g")
-                .attr("class", "arc")
-
-    //Draw arc paths
-    arcs.append("path")
-        .attr("fill", function(d, i) {
-            return color(i);
-        })
-        .attr("d", arc);
-  });
-    
-
+  $: data = split.parts 
+  $: pie = d3.pie().value(u => u.amt)(data);
+  $: arc = d3.arc().innerRadius(width/20) .outerRadius(radius);
 
  async function doPost () {
       const res = await fetch('events', {
@@ -69,8 +44,11 @@
   }
 
   const evtSource = new EventSource("/eventfeed") 
+  function oneMore () {
+    split.parts.push(Object.assign({},inv2))
+    split.parts = split.parts
+  }
 
-  let messages = [420, 421]
   evtSource.addEventListener("message", console.log)     
 
   evtSource.addEventListener("ao", e => { 
@@ -93,23 +71,41 @@
       <img src={svelteLogo} class="logo svelte" alt="Svelte Logo" />
     </a>
   </div>
-  <h1>split invoices</h1>
-  <div id="my_dataviz"></div>
-  <p> test </p>
+  <h1 > --- split invoice --- </h1>
+  {#if split.status=="Nada"}
+  <div> Enter Invoice to Split: </div>
+  <div> <input bind:value={split.bolt11}> </div> 
+  {:else} 
+    <p> {split.bolt11} </p>
+  {/if}
   <svg id="splitchart" {width} {height}> 
-  
+    {#each pie as p}
+        <g class="arc" transform="translate({width/2},{height/2})">  
+            <path d={arc(p)}} fill={colStatus[p.data.status]}> </path>
+        </g>
+    {/each}
+    <circle fill={colStatus[split.status]} transform="translate({width/2},{height/2})" r="33"></circle>
   </svg>
-
-  <ul>
-	{#each messages as m}
-		<li> x {m}</li>
-	{/each}
-  </ul>
-  <button on:click={doPost}> send value </button>  
+  <h4> Split By {split.parts.length} <span on:click={oneMore}> + </span> </h4>
+  {#each split.parts as m}
+     <div>
+        {#if m.bolt11} 
+		<p> {m.bolt11} </p>
+        {:else}
+        <input type=number bind:value={m.amt}>  
+        {/if}
+    </div>
+  {/each}
+  <button on:click={doPost}> Create Split </button>  
     
 </main>
 
 <style>
+  g path, circle { 
+    stroke: white;
+    stroke-width: 4;
+  }
+    
   .logo {
     height: 6em;
     padding: 1.5em;
