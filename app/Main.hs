@@ -12,7 +12,8 @@
     , FlexibleInstances 
     , FlexibleContexts
     , ImpredicativeTypes 
-    , LambdaCase #-}
+    , LambdaCase 
+    #-}
 
 module Main (main) where
 
@@ -67,6 +68,7 @@ s = do
     liftIO $ callCommand $ "touch " <> dblocation
     conn <- liftIO $ open $ dblocation 
     liftIO $ execute_ conn sqlCreate
+    liftIO $ execute_ conn sqlCreate2
     ch <- liftIO$newChan
     pl <- ask
     _ <- liftIO.forkIO $ runSuede pl 
@@ -91,10 +93,14 @@ p (Just i, "split", parseArg -> spl) = case spl of
         case d of 
             ErrRes m _ -> respond (toJSON m) i
             Res (parseAmt -> amt) _ -> do
-                gen <- liftIO $ initStdGen 
-                inv <- mapM (createinvoice amt.pack.show) 
-                    $ take (fromInteger parts) 
-                    $ (randoms gen :: [Int32] ) 
+                xid <- liftIO $ (randomIO :: IO Int32) 
+                
+                runQuery.runInsert.insert (_splits splitdb) $ insertValues [Split xid invoice]
+                
+                inv <- mapM (createinvoice xid) $ map (pack.show) $ take (fromInteger parts) [0..]
+                     
+                runQuery.runInsert.insert (_parts splitdb) $ insertValues inv
+                
                 prin "todo data insert"
                 respond (toJSON inv) i
     _ -> respond "invoice and parts required" i
@@ -110,15 +116,16 @@ p _ = pure ()
 parseAmt :: Value -> Text
 parseAmt v = "any" -- undefined
 
-createinvoice :: Text -> Text -> PluginMonad a (Maybe Text)
-createinvoice amt lbl = do
+createinvoice :: Int32 -> Text -> PluginMonad a (Part)
+createinvoice xid p = do
     Just (Res (fromJSON -> Success (Bolt11 b11)) _) <- lcli $ Command "invoice" b11 params
-    pure.Just $ b11
+    pure $ Part label' ("name"::Text) (SplitId xid) 
     where 
     b11 = Just $ object ["bolt11" .= True]
+    label' = (pack $ show xid) <> p
     params = object [
-          "label".=lbl
-        , "amount_msat".=amt
+          "label".= label'
+        , "amount_msat".= ("any" :: Text)
         , "description".=("split"::Text)
         ] 
 
@@ -152,7 +159,6 @@ changed' l n = object ["success" .= True, "label" .= l, "status" .= n ]
 warning' :: Text -> Value 
 warning' l = object ["success" .= False, "warning" .= l ]
 
-
 getlabel :: Params -> Maybe Text
 getlabel v = case v of 
     v@(Array _) -> v ^? nth 0 . _String
@@ -183,20 +189,39 @@ instance FromJSON Htlc'
 _pha :: Htlc' -> Text
 _pha = payment_hash
 
-sqlCreate = "CREATE TABLE IF NOT EXISTS splits (splitid TEXT, invoices TEXT)"
+-- how to do this with beam-migrate?????
+sqlCreate = "CREATE TABLE IF NOT EXISTS splits (splitid TEXT, bolt11 TEXT); " 
+sqlCreate2 = "CREATE TABLE IF NOT EXISTS parts (plabel TEXT, name TEXT, splitref TEXT, FOREIGN KEY (splitref) REFERENCES splits (splitid) );"
+
 data SplitDb f = SplitDb {
-    _splits :: f (TableEntity SplitT)
+      _splits :: f (TableEntity SplitT)
+    , _parts :: f (TableEntity PartT)
     } deriving (Generic, Database Sqlite) 
 data SplitT f = Split {
       _splitid :: Columnar f Int32
-    , _invoices :: Columnar f Text
+    , _bolt11 :: Columnar f Text
     } deriving (Generic, Beamable) 
 type Split2 = SplitT Identity
 type SplitId = PrimaryKey SplitT Identity
+data PartT f = Part {
+      _plabel :: Columnar f Text
+    , _name :: Columnar f Text
+    , _splitref :: PrimaryKey SplitT f
+    } deriving (Generic, Beamable)
+type Part = PartT Identity
+type PartId = PrimaryKey PartT Identity
+
+instance Table PartT where 
+    data PrimaryKey PartT f = PartId (Columnar f Text) deriving (Generic, Beamable)
+    primaryKey = PartId . _plabel
+
+
 splitdb :: DatabaseSettings be SplitDb
 splitdb = defaultDbSettings
 
 instance ToJSON (SplitT Identity) -- where 
+instance ToJSON (PartT Identity) -- where 
+instance ToJSON (PrimaryKey SplitT Identity)
  --   toJSON h = object $ splito  h
  --   where splito h = []
 

@@ -50,6 +50,7 @@ type InFeed = "events" :> ReqBody '[JSON] Value :> Post '[JSON] NoContent
 
 type OutFeed = "eventfeed" :> StreamGet NoFraming EventStream (SourceIO AoEvent)
 -- sse :: (MonadReader Plug m) => Chan AoEvent -> m OutFeed
+sse :: Chan a -> ReaderT p Handler (SourceT m a)
 sse i = do 
     dup <- liftIO $ dupChan i 
     se <- liftIO . readChan $ dup 
