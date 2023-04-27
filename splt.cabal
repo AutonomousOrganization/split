@@ -19,6 +19,7 @@ library
   exposed-modules:
       AoServer
       Lib
+      SplitDb
   other-modules:
       Paths_splt
   hs-source-dirs:
