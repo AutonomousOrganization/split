@@ -17,8 +17,6 @@ extra-source-files:
 
 library
   exposed-modules:
-      AoServer
-      Lib
       SplitDb
   other-modules:
       Paths_splt

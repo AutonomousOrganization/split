@@ -26,10 +26,6 @@ import Database.Beam.Migrate
 import Database.Beam.Migrate.Simple
 import Database.Beam.Sqlite.Migrate (migrationBackend)
 import Network.Wai.Handler.Warp
-import AoServer
-    
-t :: Text
-t = ""
 
 splitdb :: DatabaseSettings be SplitDb
 splitdb = defaultDbSettings
@@ -43,19 +39,23 @@ createDb conn = runBeamSqlite conn $ do
        VerificationFailed _ -> autoMigrate migrationBackend database
        VerificationSucceeded -> pure () 
 
-lookupID :: Connection -> Int32 -> IO (Maybe (SplitT Identity)) 
-lookupID conn ld = runBeamSqlite conn .runSelectReturningOne
+lookupSplit :: Connection -> Int32 -> IO (Maybe (SplitT Identity)) 
+lookupSplit conn ld = runBeamSqlite conn .runSelectReturningOne
      $ do 
-           lookup_ (_splits splitdb) (SplitId ld)
+         lookup_ (_splits splitdb) (SplitId ld)
 
-lookupID2 :: Connection -> Int32 -> IO [Part]
-lookupID2 conn ld = runBeamSqlite conn $ runSelectReturningList . select
-    $ do 
-        filter_ (\s ->  _splitref s ==. (val_$ SplitId ld)) 
-            $ all_ (_parts splitdb) 
+lookupParts :: Connection -> Int32 -> IO [Part]
+lookupParts conn ld = runBeamSqlite conn . runSelectReturningList . select
+    $ filter_ (\s ->  _splitref s ==. (val_$ SplitId ld)) 
+    $ all_ (_parts splitdb) 
+
+allSplits :: Connection -> IO [Split]
+allSplits conn = runBeamSqlite conn . runSelectReturningList . select
+    $ all_ (_splits splitdb)
 
 insertSplit :: Connection -> Split -> IO ()
-insertSplit conn s = runBeamSqlite conn .runInsert.insert (_splits splitdb)    $ insertValues [s]
+insertSplit conn s = runBeamSqlite conn .runInsert.insert (_splits splitdb)
+    $ insertValues [s]
 
 insertPart :: Connection -> Part -> IO () 
 insertPart conn p = runBeamSqlite conn .runInsert.insert (_parts splitdb)
@@ -89,6 +89,6 @@ instance Table SplitT where
         deriving (Generic, Beamable)
     primaryKey = SplitId . _splitid
 
-instance ToJSON (SplitT Identity) -- where 
-instance ToJSON (PartT Identity) -- where 
+instance ToJSON (SplitT Identity)
+instance ToJSON (PartT Identity)
 instance ToJSON (PrimaryKey SplitT Identity)
